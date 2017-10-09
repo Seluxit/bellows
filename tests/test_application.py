@@ -44,7 +44,7 @@ def _test_startup(app, nwk_type, auto_form=False, init=0, return_value={}):
 
     @asyncio.coroutine
     def mockezsp_configuration(*args, **kwargs):
-        v = return_value.get(args[0],0)
+        v = return_value.get(args[0], 0)
         return [v, nwk_type]
 
     @asyncio.coroutine
