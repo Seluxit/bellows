@@ -35,7 +35,7 @@ def get_mock_coro(return_value):
     return mock.Mock(wraps=mock_coro)
 
 
-def _test_startup(app, nwk_type, auto_form=False, init=0):
+def _test_startup(app, nwk_type, auto_form=False, init=0, return_value={}):
     # This is a fairly brittle and pointless test. Except the point is just
     # to allow startup to run all its paths and check types etc.
     @asyncio.coroutine
@@ -43,11 +43,16 @@ def _test_startup(app, nwk_type, auto_form=False, init=0):
         return [0, nwk_type]
 
     @asyncio.coroutine
+    def mockezsp_configuration(*args, **kwargs):
+        v = return_value.get(args[0],0)
+        return [v, nwk_type]
+
+    @asyncio.coroutine
     def mockinit(*args, **kwargs):
         return [init]
 
     app._ezsp._command = mockezsp
-    app._ezsp.setConfigurationValue = mockezsp
+    app._ezsp.setConfigurationValue = mockezsp_configuration
     app._ezsp.networkInit = mockinit
     app._ezsp.getNetworkParameters = mockezsp
     app._ezsp.setPolicy = mockezsp
@@ -80,6 +85,11 @@ def test_startup_end(app):
 
 def test_startup_end_form(app):
     return _test_startup(app, t.EmberNodeType.SLEEPY_END_DEVICE, True)
+
+
+def test_startup_configuration_failed(app):
+    _test_startup(app, t.EmberNodeType.COORDINATOR, True, 0, {t.EzspConfigId.CONFIG_TRANSIENT_KEY_TIMEOUT_S: 1})
+    assert app._use_permit_with_key is False
 
 
 def test_form_network(app):
@@ -292,6 +302,14 @@ def test_permit_with_key_invalid_install_code(app, ieee):
 
 def test_permit_with_key_failed_add_key(app, ieee):
     app._ezsp.addTransientLinkKey = get_mock_coro([1, 1])
+
+    loop = asyncio.get_event_loop()
+    with pytest.raises(Exception):
+        loop.run_until_complete(app.permit_with_key(ieee, bytes([0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x4A, 0xF7]), 60))
+
+
+def test_permit_with_key_not_supported(app, ieee):
+    app._use_permit_with_key = False
 
     loop = asyncio.get_event_loop()
     with pytest.raises(Exception):

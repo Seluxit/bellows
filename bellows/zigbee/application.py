@@ -24,6 +24,7 @@ class ControllerApplication(bellows.zigbee.util.ListenableMixin):
         self._listeners = {}
         self._ieee = None
         self._nwk = None
+        self._use_permit_with_key = True
 
         if database_file is not None:
             self._dblistener = bellows.zigbee.appdb.PersistingListener(database_file, self)
@@ -50,7 +51,11 @@ class ControllerApplication(bellows.zigbee.util.ListenableMixin):
         yield from self._cfg(c.CONFIG_TRUST_CENTER_ADDRESS_CACHE_SIZE, 2)
         yield from self._cfg(c.CONFIG_PACKET_BUFFER_COUNT, 0xff)
         yield from self._cfg(c.CONFIG_KEY_TABLE_SIZE, 1)
-        yield from self._cfg(c.CONFIG_TRANSIENT_KEY_TIMEOUT_S, 180)
+
+        v = yield from self._ezsp.setConfigurationValue(c.CONFIG_TRANSIENT_KEY_TIMEOUT_S, 180)
+        if v[0] != 0:
+            LOGGER.debug("Failed to set 'TRANSIENT KEY TIMEOUT', disabling secure join")
+            self._use_permit_with_key = False
 
     @asyncio.coroutine
     def startup(self, auto_form=False):
@@ -293,6 +298,9 @@ class ControllerApplication(bellows.zigbee.util.ListenableMixin):
         return self._ezsp.permitJoining(time_s)
 
     def permit_with_key(self, node, code, time_s=60):
+        if self._use_permit_with_key is False:
+            raise Exception("Permit with key is not supported by your hardware")
+
         if type(node) is not t.EmberEUI64:
             node = t.EmberEUI64([t.uint8_t(p) for p in node])
 
