@@ -243,7 +243,7 @@ class Cluster(util.ListenableMixin, util.LocalLogMixin, metaclass=Registry):
             return success[attributes[0]]
         return success, failure
 
-    def write_attributes(self, attributes, is_report=False):
+    def write_attributes(self, attributes, is_report=False, manufacturer=None):
         args = []
         for attrid, value in attributes.items():
             if isinstance(attrid, str):
@@ -264,7 +264,6 @@ class Cluster(util.ListenableMixin, util.LocalLogMixin, metaclass=Registry):
             try:
                 python_type = self.attributes[attrid][1]
                 a.value.type = t.uint8_t(foundation.DATA_TYPE_IDX[python_type])
-                print(attrid, self.attributes, python_type, a.value.type)
                 a.value.value = python_type(value)
                 args.append(a)
             except ValueError as e:
@@ -272,10 +271,10 @@ class Cluster(util.ListenableMixin, util.LocalLogMixin, metaclass=Registry):
 
         if is_report:
             schema = foundation.COMMANDS[0x01][1]
-            return self.reply(True, 0x01, schema, args)
+            return self.reply(True, 0x01, schema, args, manufacturer=manufacturer)
         else:
             schema = foundation.COMMANDS[0x02][1]
-            return self.request(True, 0x02, schema, args)
+            return self.request(True, 0x02, schema, args, manufacturer=manufacturer)
 
     def bind(self):
         return self._endpoint.device.zdo.bind(self._endpoint.endpoint_id, self.cluster_id)
