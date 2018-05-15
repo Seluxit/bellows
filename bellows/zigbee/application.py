@@ -233,6 +233,7 @@ class ControllerApplication(bellows.zigbee.util.ListenableMixin):
         LOGGER.info("Device 0x%04x (%s) joined the network", nwk, ieee)
         if ieee in self.devices:
             dev = self.get_device(ieee)
+            self.listener_event('device_joined', dev)
             if dev.nwk != nwk:
                 LOGGER.debug("Device %s changed id (0x%04x => 0x%04x)", ieee, dev.nwk, nwk)
                 dev.nwk = nwk
@@ -241,8 +242,8 @@ class ControllerApplication(bellows.zigbee.util.ListenableMixin):
                 return
         else:
             dev = self.add_device(ieee, nwk)
+            self.listener_event('device_joined', dev)
 
-        self.listener_event('device_joined', dev)
         dev.schedule_initialize()
 
     def _handle_leave(self, nwk, ieee, *args):
